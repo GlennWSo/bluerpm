@@ -797,6 +797,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 
 [[package]]
+name = "ringbuffer"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3df6368f71f205ff9c33c076d170dd56ebf68e8161c733c0caa07a7a5509ed53"
+
+[[package]]
 name = "rpmsensor"
 version = "0.1.0"
 dependencies = [
@@ -812,6 +818,7 @@ dependencies = [
  "microbit-bsp",
  "micromath",
  "panic-probe 0.3.2",
+ "ringbuffer",
 ]
 
 [[package]]
