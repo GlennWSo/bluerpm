@@ -33,6 +33,7 @@ dependencies = [
  "defmt-rtt",
  "nrf52833-pac",
  "panic-probe",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -210,6 +211,7 @@ dependencies = [
  "defmt-rtt",
  "nrf52833-pac",
  "panic-probe",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -293,3 +295,7 @@ checksum = "de437e2a6208b014ab52972a27e59b33fa2920d3e00fe05026167a1c509d19cc"
 dependencies = [
  "vcell",
 ]
+
+[[package]]
+name = "workspace-hack"
+version = "0.1.0"

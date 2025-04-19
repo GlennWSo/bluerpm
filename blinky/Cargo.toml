@@ -10,3 +10,4 @@ defmt = "1.0.1"
 defmt-rtt = "1.0.0"
 nrf52833-pac = "0.12.2"
 panic-probe = "1.0.0"
+workspace-hack = { version = "0.1", path = "../workspace-hack" }
