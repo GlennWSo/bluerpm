@@ -75,8 +75,7 @@
             cargoExtraArgs = "--target thumbv7em-none-eabihf -p ${pname}";
           }
       );
-      blinky = mkCrate ./blinky/Cargo.toml;
-      bleBatt = mkCrate ./ble/bas_peripheral/Cargo.toml;
+      rpmsensor = mkCrate ./rpmsensor/Cargo.toml;
 
       udev_hint = ''
         "hint: make sure the microbit is connected and have mod 666 to enable flashing
@@ -93,7 +92,7 @@
     in {
       devShells.default = craneLib.devShell {
         name = "embeded-rs";
-        inputsFrom = [blinky];
+        inputsFrom = [rpmsensor];
         DIRENV_LOG_FORMAT = "";
         DEFMT_LOG = "info";
         shellHook = "
@@ -108,17 +107,15 @@
         ];
       };
       apps = {
-        default = embedApp blinky;
-        blinky = embedApp blinky;
-        bleBatt = embedApp bleBatt;
+        default = embedApp rpmsensor;
       };
 
       dbg = {
         dummySrc = dummySrc;
       };
       packages = {
-        inherit blinky bleBatt cargoArtifacts;
-        default = blinky;
+        inherit rpmsensor cargoArtifacts;
+        default = rpmsensor;
       };
     });
 }
