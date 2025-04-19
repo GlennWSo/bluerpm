@@ -1,0 +1,9 @@
+[workspace]
+members = ["rpmsensor"]
+# metadata.crane.name = "hello-bit"
+metadata.crane.version = "0.1.0"
+resolver = "2"
+
+[profile.release]
+debug = 2
+
