@@ -1,46 +1,87 @@
 #![no_std]
 #![no_main]
 
-use core::ptr::write_volatile;
-
-use cortex_m::asm::nop;
-use cortex_m_rt::entry;
-// use nrf52833_pac as _; // just so we dont have to remove it from Cargo.toml
-
-use defmt::*;
+use defmt::{debug, info, println};
+use embassy_executor::Spawner;
+use embassy_futures::select::{select, Either};
+use embassy_nrf::gpio::{AnyPin, Input};
+use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, mutex::Mutex};
+use embassy_time::{Duration, Timer};
+use microbit_bsp::{
+    display::{Brightness, Frame},
+    LedMatrix, Microbit,
+};
+use micromath::F32Ext;
 use {defmt_rtt as _, panic_probe as _};
 
-const GPIO: u32 = 0x50_000_000;
-const OUT: u32 = 0x504; // write to gpio port
+type SharedFrame = Mutex<ThreadModeRawMutex, Option<Frame<5, 5>>>;
+static FRAME: SharedFrame = SharedFrame::new(None);
 
-const P0: u32 = GPIO; // port 0
-const PIN21: u32 = 0x754;
-const PIN28: u32 = 0x770;
-
-// const PIN_CNF21= c
-
-#[entry]
-fn main() -> ! {
-    const GPIO0_PNCNF21_ROW1_ADDR: *mut u32 = (GPIO + PIN21) as *mut u32;
-    const GPIO0_PNCNF28_ROW1_ADDR: *mut u32 = (GPIO + PIN28) as *mut u32;
-    const DIR_OUTPUT_POS: u32 = 0;
-    const PINCNF_DRIVE_LED: u32 = 1 << DIR_OUTPUT_POS;
-    unsafe {
-        write_volatile(GPIO0_PNCNF21_ROW1_ADDR, PINCNF_DRIVE_LED);
-        write_volatile(GPIO0_PNCNF28_ROW1_ADDR, PINCNF_DRIVE_LED);
-    }
-
-    const GPIO0_OUT_ROW1_POS: u32 = 21;
-    const GPIO0_OUT_ADDR: *mut u32 = (GPIO + OUT) as *mut u32;
-    let mut is_on = false;
-    println!("entering blinky loop");
+#[embassy_executor::task]
+async fn blinker(mut display: LedMatrix, frame: &'static SharedFrame) {
     loop {
-        unsafe {
-            write_volatile(GPIO0_OUT_ADDR, (is_on as u32) << GPIO0_OUT_ROW1_POS);
+        let frame = *frame.lock().await;
+        display
+            .display(frame.unwrap(), Duration::from_millis(1))
+            .await;
+    }
+}
+
+#[embassy_executor::task(pool_size = 25)]
+async fn blink(frame: &'static SharedFrame, r: usize, c: usize, ms: u64) {
+    let mut is_on = false;
+    loop {
+        {
+            let mut frame = frame.lock().await;
+            debug!("LED {}:{} is {}", r, c, is_on);
+            if let Some(frame) = frame.as_mut() {
+                if is_on {
+                    frame.set(r, c);
+                } else {
+                    frame.unset(r, c);
+                }
+            }
         }
-        for _ in 0..400_000 {
-            nop();
-        }
+        Timer::after_millis(ms).await;
         is_on = !is_on;
+    }
+}
+
+type Btn = Input<'static, AnyPin>;
+#[embassy_executor::task]
+async fn btn_log(mut a: Btn, mut b: Btn) {
+    loop {
+        match select(a.wait_for_rising_edge(), b.wait_for_rising_edge()).await {
+            Either::First(_) => println!("a rising"),
+            Either::Second(_) => println!("b rising"),
+        }
+        Timer::after_millis(10).await;
+    }
+}
+
+#[embassy_executor::main]
+async fn main(spawner: Spawner) {
+    defmt::println!("Hello, World!");
+    let board = Microbit::default();
+
+    let mut display = board.display;
+    display.set_brightness(Brightness::MAX);
+    let mut frame = FRAME.lock().await;
+    *frame = Some(Frame::default());
+    spawner.spawn(blinker(display, &FRAME)).unwrap();
+    spawner.spawn(btn_log(board.btn_a, board.btn_b));
+
+    let gold: f32 = 1.618_034;
+    for r in 0..5_i32 {
+        for c in 0..5_i32 {
+            let c_dist = 2 - c;
+            let r_dist = 2 - r;
+            let radi: f32 = ((r_dist.pow(2) + c_dist.pow(2)) as f32).sqrt();
+            let rc_part = (c as f32) * 10. * gold + (r as f32) * 20. * gold;
+            let delay = 100. * gold.powf(radi) + rc_part;
+            spawner
+                .spawn(blink(&FRAME, r as usize, c as usize, delay as u64))
+                .unwrap();
+        }
     }
 }
