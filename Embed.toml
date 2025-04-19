@@ -1,0 +1,17 @@
+[default.probe]
+protocol = "Swd"
+
+[default.general]
+chip = "nrf52833_xxAA" # uncomment this line for micro:bit V2
+
+[default.rtt]
+enabled = false
+
+# channels = [
+#     { up = 0, name = "defmt_rtt", format = "Defmt" },
+# ]
+# show_timestamps = true
+
+
+[default.gdb]
+enabled = false
