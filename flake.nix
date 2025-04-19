@@ -76,6 +76,7 @@
           }
       );
       rpmsensor = mkCrate ./rpmsensor/Cargo.toml;
+      blinky = mkCrate ./blinky/Cargo.toml;
 
       udev_hint = ''
         "hint: make sure the microbit is connected and have mod 666 to enable flashing
@@ -114,7 +115,7 @@
         dummySrc = dummySrc;
       };
       packages = {
-        inherit rpmsensor cargoArtifacts;
+        inherit rpmsensor blinky cargoArtifacts;
         default = rpmsensor;
       };
     });
