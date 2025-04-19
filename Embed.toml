@@ -5,7 +5,7 @@ protocol = "Swd"
 chip = "nrf52833_xxAA" # uncomment this line for micro:bit V2
 
 [default.rtt]
-enabled = false
+enabled = true
 
 # channels = [
 #     { up = 0, name = "defmt_rtt", format = "Defmt" },

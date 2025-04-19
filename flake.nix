@@ -4,12 +4,10 @@
     flake-utils.url = "github:numtide/flake-utils";
     crane = {
       url = "github:ipetkov/crane";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.flake-utils.follows = "flake-utils";
     };
     nix-filter.url = "github:numtide/nix-filter";
   };
@@ -32,7 +30,7 @@
       fs = pkgs.lib.fileset;
       files = fs.unions [
         ./.cargo
-        ./workspace-hack
+        # ./workspace-hack
         (fs.fileFilter (file: file.hasExt "toml") ./.)
         (fs.fileFilter (file: file.name == "dummy.rs") ./.)
         (fs.fileFilter (file: file.name == "Cargo.lock") ./.)
@@ -49,9 +47,6 @@
       dummySrc = craneLib.mkDummySrc {
         src = src;
         extraDummyScript = ''
-          rm $out/workspace-hack/src/bin -rf
-          rm $out/workspace-hack/src/lib.rs
-          cp ${./workspace-hack/src/lib.rs} $out/workspace-hack/src/lib.rs
         '';
       };
       cargoArtifacts = craneLib.buildDepsOnly {
