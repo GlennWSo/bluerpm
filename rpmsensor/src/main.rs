@@ -35,7 +35,12 @@ async fn btn_log(mut a: Btn, mut b: Btn, shared_rpm: &'static SharedRpm) {
 
     let mut t0 = Instant::now();
     loop {
-        match select(a.wait_for_rising_edge(), Timer::after_secs(max_dt as u64)).await {
+        match select(
+            a.wait_for_rising_edge(),
+            Timer::after_secs(target_dt as u64),
+        )
+        .await
+        {
             Either::First(_) => {
                 let elapsed = Instant::now() - t0;
                 let dt = (elapsed.as_micros() as f32) / 1_000_000.0;
@@ -43,7 +48,8 @@ async fn btn_log(mut a: Btn, mut b: Btn, shared_rpm: &'static SharedRpm) {
                 t0 = Instant::now();
             }
             Either::Second(_) => {
-                running_dt.push(f32::INFINITY);
+                let dt = running_dt.back_mut().unwrap();
+                *dt += target_dt;
             }
         };
         let mut t = 0_f32;
@@ -56,14 +62,14 @@ async fn btn_log(mut a: Btn, mut b: Btn, shared_rpm: &'static SharedRpm) {
             }
         }
         let rpm = c as f32 * 60.0 / t;
-        *shared_rpm.lock().await = rpm;
+        *shared_rpm.lock().await = if rpm <= min_rpm { 0.0 } else { rpm };
     }
 }
 
 #[embassy_executor::task]
 async fn compute_rpm(rpm: &'static SharedRpm) {
     loop {
-        Timer::after_millis(200).await;
+        Timer::after_millis(500).await;
         let dt = *rpm.lock().await;
         println!("rpm {}  ", dt);
     }
