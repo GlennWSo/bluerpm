@@ -25,35 +25,38 @@ static RPM: SharedRpm = Mutex::new(0.0);
 
 type Btn = Input<'static, AnyPin>;
 #[embassy_executor::task]
-async fn btn_log(mut a: Btn, mut b: Btn, rpm: &'static SharedRpm) {
-    let mut running_rpm = ConstGenericRingBuffer::<f32, 3>::default();
-    running_rpm.fill_default();
-    let mut avg_rpm = 0.0;
+async fn btn_log(mut a: Btn, mut b: Btn, shared_rpm: &'static SharedRpm) {
+    let max_dt: f32 = 5.0;
+    let target_dt = 1.0;
+    let min_rpm = 60.0 / max_dt;
+    const BUFF_SIZE: usize = 10;
+    let mut running_dt = ConstGenericRingBuffer::<f32, BUFF_SIZE>::new();
+    running_dt.fill(max_dt);
+
+    let mut t0 = Instant::now();
     loop {
-        let t0 = Instant::now();
-        let time_out = 1;
-        match select(a.wait_for_rising_edge(), Timer::after_secs(time_out)).await {
+        match select(a.wait_for_rising_edge(), Timer::after_secs(max_dt as u64)).await {
             Either::First(_) => {
                 let elapsed = Instant::now() - t0;
                 let dt = (elapsed.as_micros() as f32) / 1_000_000.0;
-                if dt == 0.0 {
-                    println!("dt == 0.0"); // TODO warn!?
-                    continue;
-                }
-
-                let latest_rpm = 60.0 / dt;
-                running_rpm.push(latest_rpm);
-                avg_rpm = running_rpm.iter().sum::<f32>() / running_rpm.len() as f32;
+                running_dt.push(dt);
+                t0 = Instant::now();
             }
             Either::Second(_) => {
-                running_rpm.push(0.0);
-                avg_rpm = running_rpm.iter().sum::<f32>() / running_rpm.len() as f32;
-                if avg_rpm == 0.0 {
-                    println!("rpm period timeout of: {} secs reached", 5);
-                }
+                running_dt.push(f32::INFINITY);
             }
         };
-        *rpm.lock().await = avg_rpm;
+        let mut t = 0_f32;
+        let mut c = 0_u8;
+        for dt in running_dt.iter().rev() {
+            t += dt;
+            c += 1;
+            if t > target_dt {
+                break;
+            }
+        }
+        let rpm = c as f32 * 60.0 / t;
+        *shared_rpm.lock().await = rpm;
     }
 }
 
