@@ -25,7 +25,7 @@ static RPM: SharedRpm = Mutex::new(0.0);
 
 type Btn = Input<'static, AnyPin>;
 #[embassy_executor::task]
-async fn btn_log(mut a: Btn, mut b: Btn, shared_rpm: &'static SharedRpm) {
+async fn rpm_sense(mut a: Btn, shared_rpm: &'static SharedRpm) {
     let max_dt: f32 = 5.0;
     let target_dt = 1.0;
     let min_rpm = 60.0 / max_dt;
@@ -35,12 +35,12 @@ async fn btn_log(mut a: Btn, mut b: Btn, shared_rpm: &'static SharedRpm) {
 
     let mut t0 = Instant::now();
     loop {
-        match select(
+        let event = select(
             a.wait_for_rising_edge(),
             Timer::after_secs(target_dt as u64),
         )
-        .await
-        {
+        .await;
+        match event {
             Either::First(_) => {
                 let elapsed = Instant::now() - t0;
                 let dt = (elapsed.as_micros() as f32) / 1_000_000.0;
@@ -67,7 +67,7 @@ async fn btn_log(mut a: Btn, mut b: Btn, shared_rpm: &'static SharedRpm) {
 }
 
 #[embassy_executor::task]
-async fn compute_rpm(rpm: &'static SharedRpm) {
+async fn log_rpm(rpm: &'static SharedRpm) {
     loop {
         Timer::after_millis(500).await;
         let dt = *rpm.lock().await;
@@ -82,8 +82,6 @@ async fn main(spawner: Spawner) {
 
     let mut display = board.display;
     display.set_brightness(Brightness::MAX);
-    spawner
-        .spawn(btn_log(board.btn_a, board.btn_b, &RPM))
-        .unwrap();
-    spawner.spawn(compute_rpm(&RPM)).unwrap();
+    spawner.spawn(rpm_sense(board.btn_a, &RPM)).unwrap();
+    spawner.spawn(log_rpm(&RPM)).unwrap();
 }
