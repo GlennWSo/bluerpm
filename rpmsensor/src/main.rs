@@ -11,16 +11,20 @@ use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, mutex::Mutex};
 use embassy_time::{Duration, Instant, Timer};
 use microbit_bsp::{
     display::{Brightness, Frame},
-    LedMatrix, Microbit,
+    Config, LedMatrix, Microbit, Priority,
 };
-use micromath::F32Ext;
+// use micromath::F32Ext;
 use ringbuffer::{ConstGenericRingBuffer, RingBuffer};
+use rpmsensor::{log_rpm, softdevice_task, Server, SharedRpm};
 use {defmt_rtt as _, panic_probe as _};
 
+use nrf_softdevice::ble::{gatt_server, peripheral, Connection};
+use nrf_softdevice::{raw, Softdevice};
+
+use static_cell::StaticCell;
 // type SharedCounter = Mutex<ThreadModeRawMutex, u32>;
 // static COUNTER: SharedCounter = SharedCounter::new(0);
 
-type SharedRpm = Mutex<ThreadModeRawMutex, f32>;
 static RPM: SharedRpm = Mutex::new(0.0);
 
 type Btn = Input<'static, AnyPin>;
@@ -66,22 +70,29 @@ async fn rpm_sense(mut a: Btn, shared_rpm: &'static SharedRpm) {
     }
 }
 
-#[embassy_executor::task]
-async fn log_rpm(rpm: &'static SharedRpm) {
-    loop {
-        Timer::after_millis(500).await;
-        let dt = *rpm.lock().await;
-        println!("rpm {}  ", dt);
-    }
-}
-
+static SERVER: StaticCell<Server> = StaticCell::new();
 #[embassy_executor::main]
-async fn main(spawner: Spawner) {
+async fn main(s: Spawner) {
     defmt::println!("Hello, World!");
-    let board = Microbit::default();
+    let board = Microbit::new(rpmsensor::config());
+    // Spawn the underlying softdevice task
+    let sd = rpmsensor::enable_softdevice("Embassy Microbit");
+
+    let server = SERVER.init(Server::new(sd).unwrap());
+
+    server.bas.set(13).unwrap();
+    s.spawn(softdevice_task(sd)).unwrap();
+    // Starts the bluetooth advertisement and GATT server
+    s.spawn(rpmsensor::advertiser_task(
+        s,
+        sd,
+        server,
+        "Embassy Microbit",
+    ))
+    .unwrap();
 
     let mut display = board.display;
     display.set_brightness(Brightness::MAX);
-    spawner.spawn(rpm_sense(board.btn_a, &RPM)).unwrap();
-    spawner.spawn(log_rpm(&RPM)).unwrap();
+    s.spawn(rpm_sense(board.btn_a, &RPM)).unwrap();
+    s.spawn(log_rpm(server, &RPM)).unwrap();
 }
