@@ -122,8 +122,8 @@ pub async fn advertiser_task(
     let service_list_16 = [
         3, // the len - 1
         raw::BLE_GAP_AD_TYPE_16BIT_SERVICE_UUID_COMPLETE as u8,
-        0x018, // part of 0x180F which u16 UIID for battery service
-        0x0F,  // part of 0x180F which u16 UIID for battery service
+        0x5A,  // part of 0x1805A which u16 UIID for battery service
+        0x018, // part of 0x1805A which u16 UIID for battery service
     ];
     adv_data.extend(service_list_16.into_iter());
 
