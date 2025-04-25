@@ -80,7 +80,7 @@ async fn main(s: Spawner) {
 
     let server = SERVER.init(Server::new(sd).unwrap());
 
-    server.bas.set(13).unwrap();
+    server.bas.set(13.0).unwrap();
     s.spawn(softdevice_task(sd)).unwrap();
     // Starts the bluetooth advertisement and GATT server
     s.spawn(rpmsensor::advertiser_task(

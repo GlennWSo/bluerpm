@@ -167,13 +167,15 @@ pub async fn log_rpm(server: &'static Server, rpm: &'static SharedRpm) {
     loop {
         Timer::after_millis(500).await;
         let dt = *rpm.lock().await;
-        let value = (dt / 10.0) as u8;
+        // let value = (dt / 10.0) as u8;
+        let value = dt;
         server.bas.set(value);
         println!("rpm {}  ", dt);
         if let Some(conn) = CONN.lock().await.as_ref() {
             match server.bas.rpm_notify(conn, &value) {
-                Ok(_) => info!("notice sent"),
-                Err(err) => info!("failed to send notice: {}", err),
+                // Ok(_) => info!("notice sent"),
+                Ok(_) => (),
+                Err(err) => warn!("failed to send notice: {}", err),
             }
         };
     }
