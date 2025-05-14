@@ -6,7 +6,7 @@ use core::time;
 use defmt::{debug, info, println, warn};
 use embassy_executor::Spawner;
 use embassy_futures::select::{select, Either};
-use embassy_nrf::gpio::{AnyPin, Input};
+use embassy_nrf::gpio::{AnyPin, Input, Pin};
 use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, mutex::Mutex};
 use embassy_time::{Duration, Instant, Timer};
 use microbit_bsp::{
