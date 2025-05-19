@@ -82,7 +82,21 @@ pub async fn read_ble(s: Spawner) {
     )];
     let mut config = central::ConnectConfig::default();
     // info!("central config: {:#?}", config.);
+    info!("looking for device: {}", addrs);
     config.scan_config.whitelist = Some(addrs);
+    central::scan(
+        sd,
+        &central::ScanConfig::default(),
+        |report: &raw::ble_gap_evt_adv_report_t| {
+            info!(
+                "scanned: {:#?} \t {:#?}",
+                report.direct_addr.addr, report.peer_addr.addr
+            );
+            Some(1_u32)
+        },
+    )
+    .await
+    .unwrap();
     let conn = central::connect(sd, &config).await.unwrap();
     info!("connected");
 }

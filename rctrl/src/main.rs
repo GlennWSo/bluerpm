@@ -103,7 +103,7 @@ async fn analog_read(adc: SAADC, a0: P0_02, a1: P0_03, a2: P0_04, a3: P0_05) {
 #[embassy_executor::main]
 async fn main(s: Spawner) {
     let mut p = embassy_nrf::init(rctrl::config());
-    s.spawn(analog_read(p.SAADC, p.P0_02, p.P0_03, p.P0_04, p.P0_05))
-        .unwrap();
+    // s.spawn(analog_read(p.SAADC, p.P0_02, p.P0_03, p.P0_04, p.P0_05))
+    //     .unwrap();
     s.spawn(read_ble(s)).unwrap();
 }
