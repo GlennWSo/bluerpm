@@ -24,10 +24,19 @@ async fn softdevice_task(sd: &'static Softdevice) -> ! {
     sd.run().await
 }
 
-#[nrf_softdevice::gatt_client(uuid = "180f")]
-struct BatteryServiceClient {
-    #[characteristic(uuid = "2a19", read, write, notify)]
-    battery_level: u8,
+// #[nrf_softdevice::gatt_client(uuid = "180f")]
+// struct BatteryServiceClient {
+//     #[characteristic(uuid = "2a19", read, write, notify)]
+//     battery_level: u8,
+// }
+
+#[nrf_softdevice::gatt_client(uuid = "8a8ec266-3ede-4a2f-a87b-aafbc55b8a30")]
+struct RcCarClient {
+    ///speed forward m/s
+    #[characteristic(uuid = "2C09", write)]
+    target_velocity_y: u16,
+    #[characteristic(uuid = "2C10", write, read)]
+    target_velocity_f: f32,
 }
 
 fn sd_config() -> &'static Softdevice {
@@ -99,4 +108,9 @@ pub async fn read_ble(s: Spawner) {
     .unwrap();
     let conn = central::connect(sd, &config).await.unwrap();
     info!("connected");
+
+    let client: RcCarClient = unwrap!(gatt_client::discover(&conn).await);
+    // Read
+    let val = unwrap!(client.target_velocity_f_read().await);
+    info!("read battery level: {}", val);
 }
