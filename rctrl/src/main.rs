@@ -7,7 +7,7 @@ use embassy_futures::select::{Either, select};
 use embassy_nrf::{
     bind_interrupts,
     gpio::{AnyPin, Input, Level, Output, OutputDrive, Pin},
-    peripherals::{self, P0_00},
+    peripherals::{self, P0_00, P0_02, P0_03, P0_04, P0_05, SAADC},
     saadc::{self, Saadc},
     spim,
 };
@@ -16,6 +16,7 @@ use micromath::F32Ext;
 use embassy_time::{Duration, Timer};
 // use microbit_bsp::*;
 use nrf_softdevice;
+use rctrl::read_ble;
 use {defmt_rtt as _, panic_probe as _};
 
 type Btn = Input<'static, AnyPin>;
@@ -66,22 +67,19 @@ impl<'a> Joystick<'a> {
     }
 }
 
-#[embassy_executor::main]
-async fn main(spawner: Spawner) {
-    let mut p = embassy_nrf::init(Default::default());
+#[embassy_executor::task]
+async fn analog_read(adc: SAADC, a0: P0_02, a1: P0_03, a2: P0_04, a3: P0_05) {
     let config = saadc::Config::default();
-
     println!("adc  res {:#?}", config.resolution as u8);
 
-    let ain1 = saadc::ChannelConfig::single_ended(p.P0_02);
-    let ain2 = saadc::ChannelConfig::single_ended(p.P0_03);
-    let ain3 = saadc::ChannelConfig::single_ended(p.P0_04);
-    let ain4 = saadc::ChannelConfig::single_ended(p.P0_05);
-    let mut saadc = Saadc::new(p.SAADC, Irqs, config, [ain1, ain2, ain3, ain4]);
+    let ain1 = saadc::ChannelConfig::single_ended(a0);
+    let ain2 = saadc::ChannelConfig::single_ended(a1);
+    let ain3 = saadc::ChannelConfig::single_ended(a2);
+    let ain4 = saadc::ChannelConfig::single_ended(a3);
+    let mut saadc = Saadc::new(adc, Irqs, config, [ain1, ain2, ain3, ain4]);
 
     Timer::after_millis(300).await;
     saadc.calibrate().await;
-
     Timer::after_millis(300).await;
     let mut buf = [0; 4];
 
@@ -89,8 +87,6 @@ async fn main(spawner: Spawner) {
     let offsets = [buf[0], buf[1]];
     let minv = 60;
     let maxv = 1500;
-    println!("offsets: {:?}", offsets);
-
     loop {
         saadc.sample(&mut buf).await;
         let joy = Joystick {
@@ -102,4 +98,12 @@ async fn main(spawner: Spawner) {
         println!("joy: {:?}", joy.vec2());
         Timer::after_millis(300).await;
     }
+}
+
+#[embassy_executor::main]
+async fn main(s: Spawner) {
+    let mut p = embassy_nrf::init(rctrl::config());
+    s.spawn(analog_read(p.SAADC, p.P0_02, p.P0_03, p.P0_04, p.P0_05))
+        .unwrap();
+    s.spawn(read_ble(s)).unwrap();
 }

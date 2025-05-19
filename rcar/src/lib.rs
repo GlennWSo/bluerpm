@@ -3,14 +3,21 @@
 
 //! suggested reading: https://docs.silabs.com/bluetooth/4.0/general/adv-and-scanning/bluetooth-adv-data-basics
 
+use core::f32;
+use core::ops::Deref;
+
 use embassy_executor::Spawner;
 use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, mutex::Mutex};
 use embassy_time::Timer;
 use heapless::Vec;
 use microbit_bsp::*;
 // use nrf_softdevice::ble::gatt_server::{notify_value, Server};
-use defmt::{debug, info, println, warn};
-use nrf_softdevice::ble::{gatt_server, peripheral, Connection};
+use defmt::{debug, error, info, println, warn};
+use nrf_softdevice::ble::advertisement_builder::{
+    AdvertisementDataType, Flag, LegacyAdvertisementBuilder, LegacyAdvertisementPayload,
+};
+use nrf_softdevice::ble::gatt_server::Service;
+use nrf_softdevice::ble::{gatt_server, get_address, peripheral, set_address, Address, Connection};
 use nrf_softdevice::{raw, Softdevice};
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
@@ -19,20 +26,19 @@ pub type SharedRpm = Mutex<ThreadModeRawMutex, f32>;
 
 #[nrf_softdevice::gatt_server]
 pub struct Server {
-    pub bas: IndustrialMeasurementDeviceService,
+    pub rcar: RcCarService,
 }
 
-#[nrf_softdevice::gatt_service(uuid = "185A")]
-pub struct IndustrialMeasurementDeviceService {
-    #[characteristic(uuid = "2C09", read, notify, write)]
-    rpm: f32,
+#[nrf_softdevice::gatt_service(uuid = "8a8ec266-3ede-4a2f-a87b-aafbc55b8a30")]
+pub struct RcCarService {
+    ///speed forward m/s
+    #[characteristic(uuid = "2C09", write)]
+    target_velocity_y: u16,
+    #[characteristic(uuid = "2C10", write, read)]
+    target_velocity_f: f32,
 }
 
-impl IndustrialMeasurementDeviceService {
-    pub fn set(&self, v: f32) -> Result<(), gatt_server::SetValueError> {
-        self.rpm_set(&v)
-    }
-}
+impl RcCarService {}
 
 #[embassy_executor::task]
 pub async fn softdevice_task(sd: &'static Softdevice) {
@@ -50,13 +56,14 @@ pub async fn gatt_server_task(server: &'static Server) {
         };
 
         gatt_server::run(&conn, server, |e| match e {
-            ServerEvent::Bas(e) => match e {
-                IndustrialMeasurementDeviceServiceEvent::RpmWrite(v) => {
-                    info!("incoming v {}", v);
+            ServerEvent::Rcar(e) => match e {
+                RcCarServiceEvent::TargetVelocityYWrite(y) => {
+                    println!("write request y: {}", y);
                 }
-
-                IndustrialMeasurementDeviceServiceEvent::RpmCccdWrite { notifications } => {
-                    info!("battery notifications: {}", notifications);
+                RcCarServiceEvent::TargetVelocityFWrite(y) => {
+                    println!("write request float y: {}", y);
+                    // println!("write request le float: {}", f32::from_le_bytes(y));
+                    // println!("write request be float: {}", f32::from_be_bytes(y));
                 }
             },
         })
@@ -105,7 +112,16 @@ pub fn enable_softdevice(name: &'static str) -> &'static mut Softdevice {
         }),
         ..Default::default()
     };
-    Softdevice::enable(&config)
+    let sd = Softdevice::enable(&config);
+    set_address(
+        sd,
+        &Address::new(
+            nrf_softdevice::ble::AddressType::RandomStatic,
+            [0x13, 0x33, 0x33, 0x33, 0x37, 0b1100_1010],
+        ),
+    );
+    println!("address: {:?}", get_address(&sd));
+    sd
 }
 
 #[embassy_executor::task]
@@ -116,48 +132,39 @@ pub async fn advertiser_task(
     name: &'static str,
 ) {
     // spec for assigned numbers: https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Assigned_Numbers/out/en/Assigned_Numbers.pdf?v=1715770644767
-    let mut adv_data: Vec<u8, 31> = Vec::new();
-    let flags: [u8; 3] = [
-        2, //the len -1
-        raw::BLE_GAP_AD_TYPE_FLAGS as u8,
-        raw::BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE as u8,
-    ];
-    adv_data.extend(flags.into_iter());
-    let service_list_16 = [
-        3, // the len - 1
-        raw::BLE_GAP_AD_TYPE_16BIT_SERVICE_UUID_COMPLETE as u8,
-        0x5A,  // part of 0x1805A which u16 UIID for battery service
-        0x018, // part of 0x1805A which u16 UIID for battery service
-    ];
-    adv_data.extend(service_list_16.into_iter());
 
-    adv_data
-        .extend_from_slice(&[
-            (1 + name.len() as u8),
-            raw::BLE_GAP_AD_TYPE_COMPLETE_LOCAL_NAME as u8,
-        ])
-        .unwrap();
+    static ADV_DATA: LegacyAdvertisementPayload = LegacyAdvertisementBuilder::new()
+        .flags(&[Flag::LE_Only, Flag::GeneralDiscovery])
+        .full_name("rcar")
+        // .raw(
+        //     AdvertisementDataType::RANDOM_TARGET_ADDRESS,
+        //     &[0xf1, 0x15, 0xba, 0x1e, 0x5e, 0b0000_0011],
+        // )
+        // .raw(
+        //     AdvertisementDataType::PUBLIC_TARGET_ADDRESS,
+        //     &[0xf1, 0x15, 0xba, 0x1e, 0x5e, 0x22],
+        // )
+        .build();
 
-    adv_data.extend_from_slice(name.as_bytes()).ok().unwrap();
-
-    // TODO: refer to some docs here to explain magic values
-    #[rustfmt::skip]
-    let scan_data = &[
-        0x03, 0x03, 0x18, 0x0F
-    ];
+    static SCAN_DATA: LegacyAdvertisementPayload = LegacyAdvertisementBuilder::new()
+        .services_128(
+            nrf_softdevice::ble::advertisement_builder::ServiceList::Complete,
+            &[0x8a8ec266_3ede_4a2f_a87b_aafbc55b8a30_u128.to_le_bytes()],
+        )
+        .build();
 
     loop {
         let config = peripheral::Config::default();
         let adv = peripheral::ConnectableAdvertisement::ScannableUndirected {
-            adv_data: &adv_data[..],
-            scan_data,
+            adv_data: &ADV_DATA,
+            scan_data: &SCAN_DATA,
         };
-        debug!("advertising");
+        info!("advertising");
         let conn = peripheral::advertise_connectable(sd, adv, &config)
             .await
             .unwrap();
 
-        defmt::debug!("connection established");
+        defmt::info!("connection established");
         let mut lock = CONN.lock().await;
         lock.replace(conn);
 
@@ -168,19 +175,16 @@ pub async fn advertiser_task(
 }
 #[embassy_executor::task]
 pub async fn log_rpm(server: &'static Server, rpm: &'static SharedRpm) {
+    // server.rcar.target_velocity_x_set(&0.0);
+    server.rcar.target_velocity_y_set(&0);
     loop {
-        Timer::after_millis(500).await;
-        let dt = *rpm.lock().await;
-        // let value = (dt / 10.0) as u8;
-        let value = dt;
-        server.bas.set(value);
-        println!("rpm {}  ", dt);
+        Timer::after_millis(300).await;
+
         if let Some(conn) = CONN.lock().await.as_ref() {
-            match server.bas.rpm_notify(conn, &value) {
-                // Ok(_) => info!("notice sent"),
-                Ok(_) => (),
-                Err(err) => warn!("failed to send notice: {}", err),
-            }
+            // match server.rcar.target_velocity_y_get() {
+            //     Ok(y) => (),
+            //     Err(e) => error!("didnt get y: {}", e),
+            // };
         };
     }
 }
