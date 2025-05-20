@@ -14,6 +14,8 @@ use embassy_time::Timer;
 use nrf_softdevice::ble::{Address, AddressType, central, gatt_client};
 use nrf_softdevice::{Softdevice, raw};
 
+use array_concat::*;
+
 /// Application must run at a lower priority than softdevice
 pub fn config() -> Config {
     let mut config = Config::default();
@@ -37,10 +39,8 @@ async fn softdevice_task(sd: &'static Softdevice) -> ! {
 #[nrf_softdevice::gatt_client(uuid = "8a8ec266-3ede-4a2f-a87b-aafbc55b8a30")]
 struct RcCarClient {
     ///speed forward m/s
-    #[characteristic(uuid = "2C09", write)]
-    target_velocity_y: u16,
-    #[characteristic(uuid = "2C10", write, read)]
-    target_velocity_f: f32,
+    #[characteristic(uuid = "2C09", write, read)]
+    target_velocity: [u8; 8],
 }
 
 fn sd_config() -> &'static Softdevice {
@@ -119,9 +119,13 @@ pub async fn write_ble(target_speed: &'static SharedSpeed, s: Spawner) {
     loop {
         Timer::after_millis(300).await;
         let v = *target_speed.lock().await;
-        match client.target_velocity_y_write(&3).await {
-            Ok(()) => info!("sent speed: {:?}", v),
-            Err(e) => error!("failed to send speed: {}", e),
+        let x_bytes = v[0].to_le_bytes();
+        let y_bytes = v[1].to_le_bytes();
+        let v_bytes = concat_arrays!(x_bytes, y_bytes);
+
+        match client.target_velocity_write(&v_bytes).await {
+            Ok(()) => info!("sent speedy: {:?}", v),
+            Err(e) => error!("failed to send speedy: {}", e),
         };
     }
 }

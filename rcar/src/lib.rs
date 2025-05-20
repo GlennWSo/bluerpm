@@ -12,6 +12,7 @@ use embassy_time::Timer;
 use heapless::Vec;
 use microbit_bsp::*;
 // use nrf_softdevice::ble::gatt_server::{notify_value, Server};
+use array_concat::split_array;
 use defmt::{debug, error, info, println, warn};
 use nrf_softdevice::ble::advertisement_builder::{
     AdvertisementDataType, Flag, LegacyAdvertisementBuilder, LegacyAdvertisementPayload,
@@ -32,10 +33,8 @@ pub struct Server {
 #[nrf_softdevice::gatt_service(uuid = "8a8ec266-3ede-4a2f-a87b-aafbc55b8a30")]
 pub struct RcCarService {
     ///speed forward m/s
-    #[characteristic(uuid = "2C09", write)]
-    target_velocity_y: u16,
-    #[characteristic(uuid = "2C10", write, read)]
-    target_velocity_f: f32,
+    #[characteristic(uuid = "2C09", write, read)]
+    target_velocity: [u8; 8],
 }
 
 impl RcCarService {}
@@ -47,6 +46,11 @@ pub async fn softdevice_task(sd: &'static Softdevice) {
 
 static CONN: Mutex<ThreadModeRawMutex, Option<Connection>> = Mutex::new(None);
 
+type SharedFloat = Mutex<ThreadModeRawMutex, f32>;
+
+static TARGET_SPEED_X: SharedFloat = Mutex::new(0.0);
+static TARGET_SPEED_Y: SharedFloat = Mutex::new(0.0);
+
 #[embassy_executor::task(pool_size = "1")]
 pub async fn gatt_server_task(server: &'static Server) {
     {
@@ -57,13 +61,11 @@ pub async fn gatt_server_task(server: &'static Server) {
 
         gatt_server::run(&conn, server, |e| match e {
             ServerEvent::Rcar(e) => match e {
-                RcCarServiceEvent::TargetVelocityYWrite(y) => {
-                    println!("write request y: {}", y);
-                }
-                RcCarServiceEvent::TargetVelocityFWrite(y) => {
-                    println!("write request float y: {}", y);
-                    // println!("write request le float: {}", f32::from_le_bytes(y));
-                    // println!("write request be float: {}", f32::from_be_bytes(y));
+                RcCarServiceEvent::TargetVelocityWrite(v_bytes) => {
+                    let (x_bytes, y_bytes) = split_array!(v_bytes, 4, 4);
+                    let x = f32::from_le_bytes(x_bytes);
+                    let y = f32::from_le_bytes(y_bytes);
+                    println!("set speed request x:{} y:{}", x, y);
                 }
             },
         })
@@ -176,7 +178,7 @@ pub async fn advertiser_task(
 #[embassy_executor::task]
 pub async fn log_rpm(server: &'static Server, rpm: &'static SharedRpm) {
     // server.rcar.target_velocity_x_set(&0.0);
-    server.rcar.target_velocity_y_set(&0);
+    // server.rcar.target_velocity_set(&);
     loop {
         Timer::after_millis(300).await;
 
