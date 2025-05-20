@@ -46,13 +46,10 @@ pub async fn softdevice_task(sd: &'static Softdevice) {
 
 static CONN: Mutex<ThreadModeRawMutex, Option<Connection>> = Mutex::new(None);
 
-type SharedFloat = Mutex<ThreadModeRawMutex, f32>;
-
-static TARGET_SPEED_X: SharedFloat = Mutex::new(0.0);
-static TARGET_SPEED_Y: SharedFloat = Mutex::new(0.0);
+pub type SharedSpeed = Mutex<ThreadModeRawMutex, [f32; 2]>;
 
 #[embassy_executor::task(pool_size = "1")]
-pub async fn gatt_server_task(server: &'static Server) {
+pub async fn gatt_server_task(server: &'static Server, target_speed: &'static SharedSpeed) {
     {
         let conn = {
             let lock = CONN.lock().await;
@@ -62,10 +59,15 @@ pub async fn gatt_server_task(server: &'static Server) {
         gatt_server::run(&conn, server, |e| match e {
             ServerEvent::Rcar(e) => match e {
                 RcCarServiceEvent::TargetVelocityWrite(v_bytes) => {
+                    let Ok(mut targe_speed) = target_speed.try_lock() else {
+                        warn!("unable to set speed, lock buzy");
+                        return;
+                    };
                     let (x_bytes, y_bytes) = split_array!(v_bytes, 4, 4);
                     let x = f32::from_le_bytes(x_bytes);
                     let y = f32::from_le_bytes(y_bytes);
-                    println!("set speed request x:{} y:{}", x, y);
+                    info!("set speed request x:{} y:{}", x, y);
+                    *targe_speed = [x, y];
                 }
             },
         })
@@ -132,6 +134,7 @@ pub async fn advertiser_task(
     sd: &'static Softdevice,
     server: &'static Server,
     name: &'static str,
+    target_speed: &'static SharedSpeed,
 ) {
     // spec for assigned numbers: https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Assigned_Numbers/out/en/Assigned_Numbers.pdf?v=1715770644767
 
@@ -170,7 +173,7 @@ pub async fn advertiser_task(
         let mut lock = CONN.lock().await;
         lock.replace(conn);
 
-        if let Err(e) = spawner.spawn(gatt_server_task(server)) {
+        if let Err(e) = spawner.spawn(gatt_server_task(server, target_speed)) {
             defmt::warn!("Error spawning gatt task: {:?}", e);
         }
     }

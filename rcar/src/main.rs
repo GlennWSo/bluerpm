@@ -25,6 +25,8 @@ use static_cell::StaticCell;
 // type SharedCounter = Mutex<ThreadModeRawMutex, u32>;
 // static COUNTER: SharedCounter = SharedCounter::new(0);
 
+static TARGET_SPEED: rcar::SharedSpeed = Mutex::new([0.0, 0.0]);
+
 static SERVER: StaticCell<Server> = StaticCell::new();
 #[embassy_executor::main]
 async fn main(s: Spawner) {
@@ -38,6 +40,12 @@ async fn main(s: Spawner) {
 
     s.spawn(softdevice_task(sd)).unwrap();
     // Starts the bluetooth advertisement and GATT server
-    s.spawn(rcar::advertiser_task(s, sd, server, "Embassy rcar"))
-        .unwrap();
+    s.spawn(rcar::advertiser_task(
+        s,
+        sd,
+        server,
+        "Embassy rcar",
+        &TARGET_SPEED,
+    ))
+    .unwrap();
 }
