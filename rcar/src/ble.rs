@@ -23,6 +23,10 @@ use nrf_softdevice::{raw, Softdevice};
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
 
+use crate::Mutex;
+use crate::SharedSpeed;
+use crate::ThreadModeRawMutex;
+
 #[nrf_softdevice::gatt_server]
 pub struct Server {
     pub rcar: RcCarService,
@@ -168,18 +172,18 @@ pub async fn advertiser_task(
         }
     }
 }
-#[embassy_executor::task]
-pub async fn log_rpm(server: &'static Server, rpm: &'static SharedRpm) {
-    // server.rcar.target_velocity_x_set(&0.0);
-    // server.rcar.target_velocity_set(&);
-    loop {
-        Timer::after_millis(300).await;
+// #[embassy_executor::task]
+// pub async fn log_rpm(server: &'static Server, rpm: &'static SharedRpm) {
+//     // server.rcar.target_velocity_x_set(&0.0);
+//     // server.rcar.target_velocity_set(&);
+//     loop {
+//         Timer::after_millis(300).await;
 
-        if let Some(conn) = CONN.lock().await.as_ref() {
-            // match server.rcar.target_velocity_y_get() {
-            //     Ok(y) => (),
-            //     Err(e) => error!("didnt get y: {}", e),
-            // };
-        };
-    }
-}
+//         if let Some(conn) = CONN.lock().await.as_ref() {
+//             // match server.rcar.target_velocity_y_get() {
+//             //     Ok(y) => (),
+//             //     Err(e) => error!("didnt get y: {}", e),
+//             // };
+//         };
+//     }
+// }

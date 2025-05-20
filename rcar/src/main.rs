@@ -15,6 +15,7 @@ use embassy_nrf::{
 };
 use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, mutex::Mutex};
 use embassy_time::{Duration, Instant, Timer};
+use rcar::ble;
 // use micromath::F32Ext;
 use ringbuffer::{ConstGenericRingBuffer, RingBuffer};
 use {defmt_rtt as _, panic_probe as _};
@@ -35,7 +36,7 @@ bind_interrupts!(struct Irqs {
     TWISPI0 => twim::InterruptHandler<TWISPI0>;
 });
 
-// static SERVER: StaticCell<Server> = StaticCell::new();
+static SERVER: StaticCell<ble::Server> = StaticCell::new();
 
 #[embassy_executor::main]
 async fn main(s: Spawner) {
@@ -72,12 +73,12 @@ async fn main(s: Spawner) {
 
     // BLE
     // Spawn the underlying softdevice task
-    // let sd = rcar::enable_softdevice("Embassy rcar");
+    let sd = ble::enable_softdevice("Embassy rcar");
 
-    // let mut server = Server::new(sd).unwrap();
-    // let server = SERVER.init(server);
+    let mut server = ble::Server::new(sd).unwrap();
+    let server = SERVER.init(server);
 
-    // s.spawn(softdevice_task(sd)).unwrap();
+    s.spawn(softdevice_task(sd)).unwrap();
     // Starts the bluetooth advertisement and GATT server
     // s.spawn(rcar::advertiser_task(
     //     s,

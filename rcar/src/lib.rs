@@ -1,6 +1,8 @@
 #![no_std]
 #![macro_use]
 
+pub mod ble;
+
 use embassy_nrf::{config::Config, interrupt::Priority};
 use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, mutex::Mutex};
 
