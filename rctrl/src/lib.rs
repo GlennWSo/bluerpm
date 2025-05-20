@@ -4,9 +4,13 @@
 use core::mem;
 
 use defmt::{info, *};
+
 use embassy_executor::{SpawnError, Spawner};
 use embassy_nrf::config::Config;
 use embassy_nrf::interrupt::Priority;
+use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, mutex::Mutex};
+
+use embassy_time::Timer;
 use nrf_softdevice::ble::{Address, AddressType, central, gatt_client};
 use nrf_softdevice::{Softdevice, raw};
 
@@ -79,8 +83,10 @@ fn sd_config() -> &'static Softdevice {
     Softdevice::enable(&config)
 }
 
+pub type SharedSpeed = Mutex<ThreadModeRawMutex, [f32; 2]>;
+
 #[embassy_executor::task]
-pub async fn read_ble(s: Spawner) {
+pub async fn write_ble(target_speed: &'static SharedSpeed, s: Spawner) {
     let sd = sd_config();
     s.spawn(softdevice_task(&sd)).unwrap();
 
@@ -110,7 +116,12 @@ pub async fn read_ble(s: Spawner) {
     info!("connected");
 
     let client: RcCarClient = unwrap!(gatt_client::discover(&conn).await);
-    // Read
-    let val = unwrap!(client.target_velocity_f_read().await);
-    info!("read battery level: {}", val);
+    loop {
+        Timer::after_millis(300).await;
+        let v = *target_speed.lock().await;
+        match client.target_velocity_y_write(&3).await {
+            Ok(()) => info!("sent speed: {:?}", v),
+            Err(e) => error!("failed to send speed: {}", e),
+        };
+    }
 }

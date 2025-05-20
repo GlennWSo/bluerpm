@@ -11,16 +11,19 @@ use embassy_nrf::{
     saadc::{self, Saadc},
     spim,
 };
+use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, mutex::Mutex};
 use micromath::F32Ext;
 
 use embassy_time::{Duration, Timer};
 // use microbit_bsp::*;
 use nrf_softdevice;
-use rctrl::read_ble;
+use rctrl::{SharedSpeed, write_ble};
 use {defmt_rtt as _, panic_probe as _};
 
 type Btn = Input<'static, AnyPin>;
 type Led = Output<'static, AnyPin>;
+
+static TARGET_SPEED: SharedSpeed = Mutex::new([0.0, 0.0]);
 
 bind_interrupts!(struct Irqs {
     SAADC => saadc::InterruptHandler;
@@ -68,7 +71,14 @@ impl<'a> Joystick<'a> {
 }
 
 #[embassy_executor::task]
-async fn analog_read(adc: SAADC, a0: P0_02, a1: P0_03, a2: P0_04, a3: P0_05) {
+async fn analog_read(
+    target_speed: &'static SharedSpeed,
+    adc: SAADC,
+    a0: P0_02,
+    a1: P0_03,
+    a2: P0_04,
+    a3: P0_05,
+) {
     let config = saadc::Config::default();
     println!("adc  res {:#?}", config.resolution as u8);
 
@@ -95,7 +105,8 @@ async fn analog_read(adc: SAADC, a0: P0_02, a1: P0_03, a2: P0_04, a3: P0_05) {
             minv,
             maxv,
         };
-        println!("joy: {:?}", joy.vec2());
+        *target_speed.lock().await = joy.vec2();
+
         Timer::after_millis(300).await;
     }
 }
@@ -103,7 +114,14 @@ async fn analog_read(adc: SAADC, a0: P0_02, a1: P0_03, a2: P0_04, a3: P0_05) {
 #[embassy_executor::main]
 async fn main(s: Spawner) {
     let mut p = embassy_nrf::init(rctrl::config());
-    // s.spawn(analog_read(p.SAADC, p.P0_02, p.P0_03, p.P0_04, p.P0_05))
-    //     .unwrap();
-    s.spawn(read_ble(s)).unwrap();
+    s.spawn(analog_read(
+        &TARGET_SPEED,
+        p.SAADC,
+        p.P0_02,
+        p.P0_03,
+        p.P0_04,
+        p.P0_05,
+    ))
+    .unwrap();
+    s.spawn(write_ble(&TARGET_SPEED, s)).unwrap();
 }
