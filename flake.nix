@@ -100,6 +100,7 @@
           minicom
           usbutils
           cargo-hakari
+          python312Packages.python-lsp-server
         ];
       };
       apps = {
