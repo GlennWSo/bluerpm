@@ -18,7 +18,9 @@ use nrf_softdevice::ble::advertisement_builder::{
     AdvertisementDataType, Flag, LegacyAdvertisementBuilder, LegacyAdvertisementPayload,
 };
 use nrf_softdevice::ble::gatt_server::Service;
-use nrf_softdevice::ble::{gatt_server, get_address, peripheral, set_address, Address, Connection};
+use nrf_softdevice::ble::{
+    gatt_server, get_address, peripheral, set_address, Address, Connection, Phy,
+};
 use nrf_softdevice::{raw, Softdevice};
 use static_cell::StaticCell;
 use {defmt_rtt as _, panic_probe as _};
@@ -155,7 +157,11 @@ pub async fn read_ble(s: Spawner, name: &'static str, target_speed: &'static Sha
         .build();
 
     loop {
-        let config = peripheral::Config::default();
+        let config = peripheral::Config {
+            primary_phy: Phy::M1,
+
+            ..peripheral::Config::default()
+        };
         let adv = peripheral::ConnectableAdvertisement::ScannableUndirected {
             adv_data: &ADV_DATA,
             scan_data: &SCAN_DATA,
