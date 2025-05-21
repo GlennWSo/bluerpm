@@ -28,4 +28,5 @@ fixed = "1.24.0"
 heapless = "0.8.0"
 static_cell = "2.0.0"
 array-concat = "0.5.5"
+micromath = "2.1.0"
 
