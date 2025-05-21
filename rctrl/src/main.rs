@@ -7,6 +7,7 @@ use embassy_futures::select::{Either, select};
 use embassy_nrf::{
     bind_interrupts,
     gpio::{AnyPin, Input, Level, Output, OutputDrive, Pin},
+    interrupt::{self, InterruptExt, Priority},
     peripherals::{self, P0_00, P0_02, P0_03, P0_04, P0_05, SAADC},
     saadc::{self, Saadc},
     spim,
@@ -86,6 +87,8 @@ async fn analog_read(
     let ain2 = saadc::ChannelConfig::single_ended(a1);
     let ain3 = saadc::ChannelConfig::single_ended(a2);
     let ain4 = saadc::ChannelConfig::single_ended(a3);
+
+    interrupt::SAADC.set_priority(Priority::P5);
     let mut saadc = Saadc::new(adc, Irqs, config, [ain1, ain2, ain3, ain4]);
 
     Timer::after_millis(300).await;
