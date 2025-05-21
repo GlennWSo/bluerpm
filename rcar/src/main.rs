@@ -14,12 +14,23 @@ use nrf_softdevice::ble::gatt_server::Service;
 use nrf_softdevice::ble::{gatt_server, get_address, peripheral, set_address, Address, Connection};
 use nrf_softdevice::{raw, Softdevice};
 
+use rcar::SharedSpeed;
+
+pub static TARGET_SPEED: SharedSpeed = SharedSpeed::new([0.0, 0.0]);
+
 #[embassy_executor::main]
 async fn main(s: Spawner) {
     println!("Hello, World!");
     let p = embassy_nrf::init(rcar::config());
-    // BLE
-    // Spawn the underlying softdevice task
+
+    s.spawn(rcar::motor::drive_servos(
+        &TARGET_SPEED,
+        p.TWISPI1,
+        p.P0_26,
+        p.P1_00,
+    ))
+    .unwrap();
+
     for _ in 0..10 {
         info!("wait");
         Timer::after_millis(100).await;
