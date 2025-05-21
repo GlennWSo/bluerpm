@@ -13,7 +13,7 @@ use embassy_time::Timer;
 use heapless::Vec;
 // use nrf_softdevice::ble::gatt_server::{notify_value, Server};
 use array_concat::split_array;
-use defmt::{debug, error, info, println, warn};
+use defmt::{debug, error, info, println, trace, warn};
 use nrf_softdevice::ble::advertisement_builder::{
     AdvertisementDataType, Flag, LegacyAdvertisementBuilder, LegacyAdvertisementPayload,
 };
@@ -59,15 +59,15 @@ pub async fn gatt_server_task(server: &'static Server, target_speed: &'static Sh
         gatt_server::run(&conn, server, |e| match e {
             ServerEvent::Rcar(e) => match e {
                 RcCarServiceEvent::TargetVelocityWrite(v_bytes) => {
-                    // let Ok(mut targe_speed) = target_speed.try_lock() else {
-                    //     info!("unable to set speed, lock buzy");
-                    //     return;
-                    // };
+                    let Ok(mut targe_speed) = target_speed.try_lock() else {
+                        warn!("unable to set speed, lock buzy");
+                        return;
+                    };
                     let (x_bytes, y_bytes) = split_array!(v_bytes, 4, 4);
                     let x = f32::from_le_bytes(x_bytes);
                     let y = f32::from_le_bytes(y_bytes);
-                    info!("set speed request x:{} y:{}", x, y);
-                    // *targe_speed = [x, y];
+                    trace!("set speed request x:{} y:{}", x, y);
+                    *targe_speed = [x, y];
                 }
             },
         })

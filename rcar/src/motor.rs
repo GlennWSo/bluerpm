@@ -3,8 +3,8 @@
 
 use core::{any::Any, time};
 
-use crate::SharedSpeed;
-use defmt::{debug, error, info, println, warn, Debug2Format};
+use crate::{ble, SharedSpeed};
+use defmt::{debug, error, info, println, trace, warn, Debug2Format};
 use embassy_executor::Spawner;
 use embassy_futures::select::{select, Either};
 use embassy_nrf::{
@@ -52,16 +52,19 @@ pub async fn drive_servos(
     let wukong_address = 0x10;
 
     // let mut speed = 0_u8;
-    let speed = 40;
+    let mut speed = 90;
     info!("entering speed ctrl loop");
     loop {
         Timer::after_millis(300).await;
+        let y = target_speed.lock().await[1];
+        trace!("targety:{}", y);
+        speed = (y * 90.0 + 90.0) as u8;
 
         // info!("setting speed to: {}", speed);
         let motors = [4, 5, 6, 7];
         for m in motors {
             let buf = [m, speed, 0, 0];
-            // let res = twim.write(wukong_address, &buf).await;
+            let res = twim.write(wukong_address, &buf).await;
         }
     }
     return;
