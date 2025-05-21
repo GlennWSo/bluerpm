@@ -59,15 +59,15 @@ pub async fn gatt_server_task(server: &'static Server, target_speed: &'static Sh
         gatt_server::run(&conn, server, |e| match e {
             ServerEvent::Rcar(e) => match e {
                 RcCarServiceEvent::TargetVelocityWrite(v_bytes) => {
-                    let Ok(mut targe_speed) = target_speed.try_lock() else {
-                        warn!("unable to set speed, lock buzy");
-                        return;
-                    };
+                    // let Ok(mut targe_speed) = target_speed.try_lock() else {
+                    //     info!("unable to set speed, lock buzy");
+                    //     return;
+                    // };
                     let (x_bytes, y_bytes) = split_array!(v_bytes, 4, 4);
                     let x = f32::from_le_bytes(x_bytes);
                     let y = f32::from_le_bytes(y_bytes);
                     info!("set speed request x:{} y:{}", x, y);
-                    *targe_speed = [x, y];
+                    // *targe_speed = [x, y];
                 }
             },
         })
@@ -121,16 +121,15 @@ pub fn enable_softdevice(name: &'static str) -> &'static mut Softdevice {
     println!("address: {:?}", get_address(&sd));
     sd
 }
+static SERVER: StaticCell<Server> = StaticCell::new();
 
 #[embassy_executor::task]
-pub async fn advertiser_task(
-    spawner: Spawner,
-    sd: &'static Softdevice,
-    server: &'static Server,
-    name: &'static str,
-    target_speed: &'static SharedSpeed,
-) {
+pub async fn read_ble(s: Spawner, name: &'static str, target_speed: &'static SharedSpeed) {
     // spec for assigned numbers: https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Assigned_Numbers/out/en/Assigned_Numbers.pdf?v=1715770644767
+    let mut sd = enable_softdevice("Embassy rcar");
+    let server = Server::new(sd).unwrap();
+    let server = SERVER.init(server);
+    s.spawn(softdevice_task(sd)).unwrap();
 
     static ADV_DATA: LegacyAdvertisementPayload = LegacyAdvertisementBuilder::new()
         .flags(&[Flag::LE_Only, Flag::GeneralDiscovery])
@@ -167,23 +166,8 @@ pub async fn advertiser_task(
         let mut lock = CONN.lock().await;
         lock.replace(conn);
 
-        if let Err(e) = spawner.spawn(gatt_server_task(server, target_speed)) {
+        if let Err(e) = s.spawn(gatt_server_task(server, target_speed)) {
             defmt::warn!("Error spawning gatt task: {:?}", e);
         }
     }
 }
-// #[embassy_executor::task]
-// pub async fn log_rpm(server: &'static Server, rpm: &'static SharedRpm) {
-//     // server.rcar.target_velocity_x_set(&0.0);
-//     // server.rcar.target_velocity_set(&);
-//     loop {
-//         Timer::after_millis(300).await;
-
-//         if let Some(conn) = CONN.lock().await.as_ref() {
-//             // match server.rcar.target_velocity_y_get() {
-//             //     Ok(y) => (),
-//             //     Err(e) => error!("didnt get y: {}", e),
-//             // };
-//         };
-//     }
-// }

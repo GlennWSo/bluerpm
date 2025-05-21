@@ -9,13 +9,14 @@ use embassy_futures::select::{select, Either};
 use embassy_nrf::{
     bind_interrupts,
     gpio::{AnyPin, Input, Pin},
-    peripherals::{SAADC, TWISPI0},
+    interrupt::{self, InterruptExt},
+    peripherals::{P0_26, P1_00, SAADC, TWISPI1},
     saadc,
     twim::{self, Twim},
 };
 use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, mutex::Mutex};
 use embassy_time::{Duration, Instant, Timer};
-use rcar::ble;
+use rcar::{ble, SharedSpeed};
 // use micromath::F32Ext;
 use ringbuffer::{ConstGenericRingBuffer, RingBuffer};
 use {defmt_rtt as _, panic_probe as _};
@@ -30,62 +31,53 @@ use static_cell::StaticCell;
 
 static TARGET_SPEED: rcar::SharedSpeed = Mutex::new([0.0, 0.0]);
 
-#[embassy_executor::task]
-async fn drive_servos() {}
 bind_interrupts!(struct Irqs {
-    TWISPI0 => twim::InterruptHandler<TWISPI0>;
+    TWISPI1 => twim::InterruptHandler<TWISPI1>;
 });
 
-static SERVER: StaticCell<ble::Server> = StaticCell::new();
+#[embassy_executor::task]
+async fn drive_servos(target_speed: &'static SharedSpeed, twi1: TWISPI1, scl: P0_26, sda: P1_00) {
+    info!("Initializing TWI...");
+
+    let mut i2c_config = twim::Config::default();
+    i2c_config.frequency = twim::Frequency::K100;
+    // i2c_config.sda_pullup = true;
+    // i2c_config.scl_pullup = true;
+
+    // interrupt::TWISPI1.set_priority(interrupt::Priority::P7);
+    let mut twim = Twim::new(twi1, Irqs, sda, scl, i2c_config);
+    let wukong_address = 0x10;
+
+    // let mut speed = 0_u8;
+    let speed = 40;
+    info!("entering speed ctrl loop");
+    loop {
+        Timer::after_millis(1).await;
+
+        info!("setting speed to: {}", speed);
+        let motors = [4, 5, 6, 7];
+        for m in motors {
+            let buf = [m, speed, 0, 0];
+            // let res = twim.write(wukong_address, &buf).await;
+        }
+    }
+    return;
+}
 
 #[embassy_executor::main]
 async fn main(s: Spawner) {
     defmt::println!("Hello, World!");
     let p = embassy_nrf::init(rcar::config());
-
-    info!("Initializing TWI...");
-    static RAM_BUFFER: ConstStaticCell<[u8; 16]> = ConstStaticCell::new([0; 16]);
-    let scl = p.P0_26;
-    let sda = p.P1_00;
-    let mut i2c_config = twim::Config::default();
-    i2c_config.frequency = twim::Frequency::K100;
-    i2c_config.sda_pullup = true;
-    i2c_config.scl_pullup = true;
-
-    let mut twi = Twim::new(p.TWISPI0, Irqs, sda, scl, i2c_config);
-    let wukong_address = 0x10;
-
-    let mut speed = 0_u8;
-    loop {
-        Timer::after_millis(100).await;
-        info!("setting speed: {}", speed);
-        let motors = [4, 5, 6, 7];
-        for m in motors {
-            let buf = [m, speed, 0, 0];
-            let res = twi.write(wukong_address, &buf).await;
-        }
-
-        speed += 10;
-        if speed > 180 {
-            speed = 0;
-        }
-    }
-
     // BLE
     // Spawn the underlying softdevice task
-    let sd = ble::enable_softdevice("Embassy rcar");
+    info!("wait");
+    Timer::after_millis(100).await;
+    info!("ready");
 
-    let mut server = ble::Server::new(sd).unwrap();
-    let server = SERVER.init(server);
+    // s.spawn(drive_servos(&TARGET_SPEED, p.TWISPI1, p.P0_26, p.P1_00))
+    //     .unwrap();
 
-    s.spawn(softdevice_task(sd)).unwrap();
     // Starts the bluetooth advertisement and GATT server
-    // s.spawn(rcar::advertiser_task(
-    //     s,
-    //     sd,
-    //     server,
-    //     "Embassy rcar",
-    //     &TARGET_SPEED,
-    // ))
-    // .unwrap();
+    // s.spawn(ble::read_ble(s, "Embassy rcar", &TARGET_SPEED))
+    //     .unwrap();
 }
