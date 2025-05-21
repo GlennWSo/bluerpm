@@ -703,7 +703,7 @@ dependencies = [
  "futures",
  "heapless",
  "nrf-softdevice-macro",
- "nrf-softdevice-s140",
+ "nrf-softdevice-s113",
  "nrf52833-pac",
  "num_enum",
 ]
@@ -723,10 +723,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "nrf-softdevice-s140"
+name = "nrf-softdevice-s113"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ea93a1e11efdafcf914ed6b81b5be0cd99ee8ff6c3060102265ea863a355393"
+checksum = "a31dd9e5c307932d1db1dea42642e161c8c9575cbe02d14de5a16b9691d76087"
 
 [[package]]
 name = "nrf52805-pac"
@@ -962,7 +962,7 @@ dependencies = [
  "futures",
  "heapless",
  "nrf-softdevice",
- "nrf-softdevice-s140",
+ "nrf-softdevice-s113",
  "panic-probe",
  "static_cell",
 ]

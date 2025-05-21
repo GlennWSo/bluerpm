@@ -1,6 +1,8 @@
 MEMORY
 {
-  /* NRF52833 with Softdevice S140 7.3.0 */
-  FLASH : ORIGIN = 0x00000000 + 156K, LENGTH = 512K - 156K
-  RAM : ORIGIN = 0x20000000 + 31K, LENGTH = 128K - 31K
+  /* https://github.com/lulf/microbit-bsp/blob/main/examples/ble-nrf-softdevice/memory.x */
+MBR         : ORIGIN = 0x00000000, LENGTH = 4K
+SOFTDEVICE  : ORIGIN = 0x00001000, LENGTH = 114688
+FLASH       : ORIGIN = 0x0001C000, LENGTH = 405504
+RAM         : ORIGIN = 0x2000afa8, LENGTH = 86104
 }
