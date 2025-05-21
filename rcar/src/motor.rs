@@ -55,7 +55,7 @@ pub async fn drive_servos(
     let mut speed = 90;
     info!("entering speed ctrl loop");
     loop {
-        Timer::after_millis(300).await;
+        Timer::after_millis(10).await;
         let y = target_speed.lock().await[1];
         trace!("targety:{}", y);
         speed = (y * 90.0 + 90.0) as u8;

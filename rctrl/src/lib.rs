@@ -117,14 +117,14 @@ pub async fn write_ble(target_speed: &'static SharedSpeed, s: Spawner) {
 
     let client: RcCarClient = unwrap!(gatt_client::discover(&conn).await);
     loop {
-        Timer::after_millis(300).await;
+        Timer::after_millis(10).await;
         let v = *target_speed.lock().await;
         let x_bytes = v[0].to_le_bytes();
         let y_bytes = v[1].to_le_bytes();
         let v_bytes = concat_arrays!(x_bytes, y_bytes);
 
         match client.target_velocity_write(&v_bytes).await {
-            Ok(()) => info!("sent speedy: {:?}", v),
+            Ok(()) => trace!("sent speed: {:?}", v),
             Err(e) => error!("failed to send speedy: {}", e),
         };
     }

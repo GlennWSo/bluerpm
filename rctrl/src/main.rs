@@ -107,7 +107,7 @@ async fn analog_read(
         };
         *target_speed.lock().await = joy.vec2();
 
-        Timer::after_millis(300).await;
+        Timer::after_millis(10).await;
     }
 }
 
