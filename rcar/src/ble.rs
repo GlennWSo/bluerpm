@@ -98,6 +98,9 @@ pub fn enable_softdevice(name: &'static str) -> &'static mut Softdevice {
         gap_role_count: Some(raw::ble_gap_cfg_role_count_t {
             adv_set_count: 1,
             periph_role_count: 3,
+            central_role_count: 3,
+            central_sec_count: 0,
+            _bitfield_1: raw::ble_gap_cfg_role_count_t::new_bitfield_1(0),
         }),
         gap_device_name: Some(raw::ble_gap_cfg_device_name_t {
             p_value: name.as_ptr() as *const u8 as _,

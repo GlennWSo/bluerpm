@@ -31,6 +31,9 @@ async fn main(s: Spawner) {
     ))
     .unwrap();
 
+    s.spawn(rcar::ble::read_ble(s, "rcar", &TARGET_SPEED))
+        .unwrap();
+
     for _ in 0..10 {
         info!("wait");
         Timer::after_millis(100).await;

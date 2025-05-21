@@ -1,7 +1,7 @@
 #![no_std]
 #![macro_use]
 
-// pub mod ble;
+pub mod ble;
 
 pub mod motor;
 
@@ -10,7 +10,6 @@ use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, mutex::Mutex};
 
 // pub type SharedRpm = Mutex<ThreadModeRawMutex, f32>;
 pub type SharedSpeed = Mutex<ThreadModeRawMutex, [f32; 2]>;
-pub static TARGET_SPEED: crate::SharedSpeed = Mutex::new([0.0, 0.0]);
 
 pub fn config() -> Config {
     let mut config = Config::default();
