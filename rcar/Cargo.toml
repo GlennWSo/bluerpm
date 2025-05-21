@@ -4,41 +4,27 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-embassy-nrf = {version = "0.3.1", default-features = true, features= [
-    "gpiote",
-    "nfc-pins-as-gpio",
-    "nrf52833",
-    "time-driver-rtc1",
-    "time",
-    ]}
-embassy-futures = { version = "0.1.0"  }
-embassy-sync = { version = "0.6.1" , features = ["defmt"] }
-embassy-executor = { version = "0.7.0" , features = ["task-arena-size-32768", "arch-cortex-m", "executor-thread", "executor-interrupt", "defmt"] }
-embassy-time = { version = "0.4.0" , features = ["defmt", "defmt-timestamp-uptime"] }
+microbit-bsp = "0.3.0"
+embassy-futures = { version = "0.1", default-features = false }
+embassy-executor = { version = "0.5", default-features = false, features = ["integrated-timers", "defmt", "arch-cortex-m", "executor-thread", "task-arena-size-32768"] }
+embassy-time = { version = "0.3", default-features = false, features = ["defmt-timestamp-uptime"] }
 
-# embassy-net = { version = "0.6.0" , features = ["defmt", "tcp", "dhcpv4", "medium-ethernet"] }
-# embassy-usb = { version = "0.3.0" , features = ["defmt"] }
-# embedded-io = { version = "0.6.0", features = ["defmt-03"]  }
-# embedded-io-async = { version = "0.6.1", features = ["defmt-03"] }
-# embassy-net-esp-hosted = { version = "0.2.0" , features = ["defmt"] }
-# embassy-net-enc28j60 = { version = "0.2.0" , features = ["defmt"] }
+nrf-softdevice = { version = "0.1.0", features = ["ble-central", "ble-peripheral", "ble-gatt-server", "ble-gatt-client", "s140", "nrf52833", "critical-section-impl", "defmt"] }
+# nrf-softdevice-s122 = "0.1.2" # central only
+nrf-softdevice-s140 = "0.1.2"
 
+heapless = "0.7"
 cortex-m-rt = "0.7"
-cortex-m = { version = "0.7.6", features = ["critical-section-single-core"] }
-
-# nrf-softdevice = {version = "0.1.0", features = ["ble-peripheral", "ble-gatt-server", "s113", "nrf52833", "defmt" ]}
-# nrf-softdevice-s113 = "0.1.2"
+static_cell = "2.1.0"
 
 defmt = "0.3"
 defmt-rtt = "0.4"
 panic-probe = { version = "0.3", features = ["print-defmt"] }
-
-heapless = "0.7"
-static_cell = "2.1.0"
+embassy-sync = "0.5.0"
 ringbuffer = { version = "0.15.0", default-features = false }
+embassy-nrf = "0.1.0"
+embedded-hal = "1.0.0"
+micromath = "2.1.0"
 array-concat = "0.5.5"
 
 
-# [patch.crates-io]
-# nrf-softdevice = { git = "https://github.com/embassy-rs/nrf-softdevice.git", rev = "b193eaa1718aeadd3b5eca54f1784aeceba75385" }
-# nrf-softdevice-s113 = { git = "https://github.com/embassy-rs/nrf-softdevice.git", rev = "b193eaa1718aeadd3b5eca54f1784aeceba75385" }
