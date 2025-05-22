@@ -8,7 +8,7 @@ use embassy_nrf::{
     bind_interrupts,
     gpio::{AnyPin, Input, Level, Output, OutputDrive, Pin},
     interrupt::{self, InterruptExt, Priority},
-    peripherals::{self, P0_00, P0_02, P0_03, P0_04, P0_05, SAADC},
+    peripherals::{self, P0_00, P0_02, P0_03, P0_04, P0_05, P0_31, SAADC},
     saadc::{self, Saadc},
     spim,
 };
@@ -18,7 +18,7 @@ use micromath::F32Ext;
 use embassy_time::{Duration, Timer};
 // use microbit_bsp::*;
 use nrf_softdevice;
-use rctrl::{SharedSpeed, Vec2, write_ble};
+use rctrl::{SharedSpeed, Vec2, Vec3, write_ble};
 use {defmt_rtt as _, panic_probe as _};
 
 type Btn = Input<'static, AnyPin>;
@@ -32,7 +32,7 @@ bind_interrupts!(struct Irqs {
 
 struct Joystick<'a> {
     raw: &'a [i16],
-    offsets: [i16; 2],
+    offsets: [i16; 3],
     minv: i16,
     maxv: i16,
 }
@@ -55,20 +55,31 @@ impl<'a> Joystick<'a> {
         let v = self.raw[1] - self.offsets[1];
         self.clamp(v)
     }
+    fn z(&self) -> i16 {
+        let v = self.raw[2] - self.offsets[2];
+        self.clamp(v)
+    }
+
+    /// normalized vector
+    fn vec3(&self) -> Vec3 {
+        if (self.x() == 0) && (self.y() == 0) && (self.y() == 0) {
+            return Vec3::default();
+        };
+        let maxv = self.maxv as f32;
+        let x = self.x() as f32 / maxv;
+        let y = self.y() as f32 / maxv;
+        let z = self.z() as f32 / maxv;
+        Vec3 { x, y, z }
+    }
+
     /// normalized vector
     fn vec2(&self) -> Vec2 {
         if (self.x() == 0) && (self.y() == 0) {
             return Vec2::default();
         };
-        let x = self.x() as f32;
-        let y = self.y() as f32;
-        let mag2 = (x.powi(2) + y.powi(2));
         let maxv = self.maxv as f32;
-        let maxmag2 = maxv.powi(2);
-        let clamp_mag2 = mag2.min(maxmag2);
-        let clamper = (clamp_mag2 / mag2).sqrt() / maxv;
-        let x = x * clamper;
-        let y = -y * clamper;
+        let x = self.x() as f32 / maxv;
+        let y = self.y() as f32 / maxv;
         Vec2 { x, y }
     }
 }
@@ -80,7 +91,7 @@ async fn analog_read(
     a0: P0_02,
     a1: P0_03,
     a2: P0_04,
-    a3: P0_05,
+    a3: P0_31,
 ) {
     let config = saadc::Config::default();
     println!("adc  res {:#?}", config.resolution as u8);
@@ -99,13 +110,13 @@ async fn analog_read(
     let mut buf = [0; 4];
 
     saadc.sample(&mut buf).await;
-    let offsets = [buf[0], buf[1]];
+    let offsets = [buf[0], buf[1], buf[2]];
     let minv = 60;
     let maxv = 1500;
     loop {
         saadc.sample(&mut buf).await;
         let joy = Joystick {
-            raw: &buf[0..2],
+            raw: &buf[0..3],
             offsets,
             minv,
             maxv,
@@ -113,7 +124,8 @@ async fn analog_read(
         let speed = joy.vec2();
         target_speed.signal(speed);
 
-        Timer::after_millis(10).await;
+        info!("speed: {:?}", speed.to_array());
+        Timer::after_millis(400).await;
     }
 }
 
@@ -126,7 +138,7 @@ async fn main(s: Spawner) {
         p.P0_02,
         p.P0_03,
         p.P0_04,
-        p.P0_05,
+        p.P0_31,
     ))
     .unwrap();
     s.spawn(write_ble(&TARGET_SPEED, s)).unwrap();

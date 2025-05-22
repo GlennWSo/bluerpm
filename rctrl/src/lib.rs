@@ -84,6 +84,7 @@ fn sd_config() -> &'static Softdevice {
 }
 
 pub type Vec2 = micromath::vector::F32x2;
+pub type Vec3 = micromath::vector::F32x3;
 
 pub type SharedSpeed = Signal<ThreadModeRawMutex, Vec2>;
 
@@ -140,7 +141,10 @@ pub async fn write_ble(target_speed: &'static SharedSpeed, s: Spawner) {
         let y_bytes = speed.y.to_le_bytes();
         let v_bytes = concat_arrays!(x_bytes, y_bytes);
 
-        match client.target_velocity_write(&v_bytes).await {
+        match client
+            .target_velocity_write_without_response(&v_bytes)
+            .await
+        {
             Ok(()) => trace!("sent speed: {:?}", speed),
             Err(e) => error!("failed to send speedy: {}", e),
         };

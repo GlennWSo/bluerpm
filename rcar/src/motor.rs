@@ -174,27 +174,11 @@ pub async fn drive_servos(
         let [x, y] = target_speed.wait().await;
         let mut motor_speeds = wheel_cfg.transforms(x, y);
 
-        let mut old_speeds = [90_u8; 4];
-
         for (i, [motor, speed]) in motor_speeds.iter().copied().enumerate() {
-            // Timer::after_millis(1).await;
-            let speed = match speed {
-                87..=93 => 90,
-                speed => speed,
-            };
-            // if (speed as i16 - old_speeds[i] as i16).abs() < 3 {
-            // trace!("i:{}, speed:{}", i, speed);
-            // continue;
-            // }
             let buf = [motor, speed, 0, 0];
             let res = twim.write(wukong_address, &buf).await;
             match res {
-                _ => {
-                    // info!("new speed set: {:?}", [i as u8, speed]);
-                    // info!("from x:{} y:{}", x, y);
-                    // info!("read: {:?}", readbuf);
-                    old_speeds[i] = speed;
-                }
+                _ => {}
                 Err(e) => {
                     error!(
                         "failed to write twi_buff: {}:{:?} \n\te:{}",
