@@ -171,8 +171,9 @@ pub async fn drive_servos(
     // let mut speed = 0_u8;
     info!("entering speed ctrl loop");
     loop {
-        let [x, y] = target_speed.wait().await;
+        let [x, y, z] = target_speed.wait().await;
         let mut motor_speeds = wheel_cfg.transforms(x, y);
+        info!("new speed: x:{}, y:{}, z:{}", x, y, z);
 
         for (i, [motor, speed]) in motor_speeds.iter().copied().enumerate() {
             let buf = [motor, speed, 0, 0];

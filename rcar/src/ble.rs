@@ -38,7 +38,7 @@ pub struct Server {
 pub struct RcCarService {
     ///speed forward m/s
     #[characteristic(uuid = "2C09", write, read)]
-    target_velocity: [u8; 8],
+    target_velocity: [u8; 3 * 4],
 }
 
 impl RcCarService {}
@@ -61,11 +61,12 @@ pub async fn gatt_server_task(server: &'static Server, target_speed: &'static Sh
         gatt_server::run(&conn, server, |e| match e {
             ServerEvent::Rcar(e) => match e {
                 RcCarServiceEvent::TargetVelocityWrite(v_bytes) => {
-                    let (x_bytes, y_bytes) = split_array!(v_bytes, 4, 4);
+                    let (x_bytes, y_bytes, z_bytes) = split_array!(v_bytes, 4, 4, 4);
                     let x = f32::from_le_bytes(x_bytes);
                     let y = f32::from_le_bytes(y_bytes);
-                    trace!("set speed request x:{} y:{}", x, y);
-                    target_speed.signal([x, y]);
+                    let z = f32::from_le_bytes(z_bytes);
+                    trace!("set speed request x:{} y:{} z:{}", x, y, z);
+                    target_speed.signal([x, y, z]);
                 }
             },
         })

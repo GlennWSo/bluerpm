@@ -40,7 +40,7 @@ async fn softdevice_task(sd: &'static Softdevice) -> ! {
 struct RcCarClient {
     ///speed forward m/s
     #[characteristic(uuid = "2C09", write, read)]
-    target_velocity: [u8; 8],
+    target_velocity: [u8; 4 * 3],
 }
 
 fn sd_config() -> &'static Softdevice {
@@ -86,7 +86,7 @@ fn sd_config() -> &'static Softdevice {
 pub type Vec2 = micromath::vector::F32x2;
 pub type Vec3 = micromath::vector::F32x3;
 
-pub type SharedSpeed = Signal<ThreadModeRawMutex, Vec2>;
+pub type SharedSpeed = Signal<ThreadModeRawMutex, Vec3>;
 
 #[embassy_executor::task]
 pub async fn write_ble(target_speed: &'static SharedSpeed, s: Spawner) {
@@ -119,13 +119,13 @@ pub async fn write_ble(target_speed: &'static SharedSpeed, s: Spawner) {
     info!("connected");
 
     let client: RcCarClient = unwrap!(gatt_client::discover(&conn).await);
-    let mut last_speed = Vec2::default();
+    let mut last_speed = Vec3::default();
     let epsillon = 0.04_f32.powi(2);
     loop {
         let speed = target_speed.wait().await;
 
         let diff_speed = (speed - last_speed);
-        let dlen2 = diff_speed[0].powi(2) + diff_speed[1].powi(2);
+        let dlen2 = diff_speed[0].powi(2) + diff_speed[1].powi(2) + diff_speed[2].powi(2);
         if dlen2 < epsillon {
             continue;
         }
@@ -139,7 +139,8 @@ pub async fn write_ble(target_speed: &'static SharedSpeed, s: Spawner) {
 
         let x_bytes = speed.x.to_le_bytes();
         let y_bytes = speed.y.to_le_bytes();
-        let v_bytes = concat_arrays!(x_bytes, y_bytes);
+        let z_bytes = speed.z.to_le_bytes();
+        let v_bytes = concat_arrays!(x_bytes, y_bytes, z_bytes);
 
         match client
             .target_velocity_write_without_response(&v_bytes)

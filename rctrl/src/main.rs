@@ -62,7 +62,7 @@ impl<'a> Joystick<'a> {
 
     /// normalized vector
     fn vec3(&self) -> Vec3 {
-        if (self.x() == 0) && (self.y() == 0) && (self.y() == 0) {
+        if (self.x() == 0) && (self.y() == 0) && (self.z() == 0) {
             return Vec3::default();
         };
         let maxv = self.maxv as f32;
@@ -121,7 +121,7 @@ async fn analog_read(
             minv,
             maxv,
         };
-        let speed = joy.vec2();
+        let speed = joy.vec3();
         target_speed.signal(speed);
 
         info!("speed: {:?}", speed.to_array());

@@ -23,7 +23,7 @@ async fn main(s: Spawner) {
     println!("Hello, World!");
     let p = embassy_nrf::init(rcar::config());
 
-    &TARGET_SPEED.signal([0.0, 0.0]);
+    &TARGET_SPEED.signal([0.0; 3]);
     s.spawn(rcar::motor::drive_servos(
         &TARGET_SPEED,
         p.TWISPI1,
