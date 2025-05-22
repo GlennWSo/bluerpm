@@ -83,7 +83,7 @@ impl WheelSpeed {
         if max < 1.0 {
             return self;
         }
-        self * max
+        self * (1.0 / max)
     }
 }
 
@@ -153,10 +153,12 @@ pub async fn drive_servos(
 
     let mut i2c_config = twim::Config::default();
     i2c_config.frequency = twim::Frequency::K100;
-    // i2c_config.sda_pullup = true;
-    // i2c_config.scl_pullup = true;
+    i2c_config.sda_pullup = true;
+    i2c_config.scl_pullup = true;
+    i2c_config.sda_high_drive = true;
+    i2c_config.scl_high_drive = true;
 
-    // interrupt::TWISPI1.set_priority(interrupt::Priority::P7);
+    interrupt::SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1.set_priority(interrupt::Priority::P5);
     let mut twim = Twim::new(twi1, Irqs, sda, scl, i2c_config);
     let wukong_address = 0x10;
     let wheel_cfg = WheelMan {
@@ -167,16 +169,39 @@ pub async fn drive_servos(
     };
 
     // let mut speed = 0_u8;
-    let mut speed = 90;
     info!("entering speed ctrl loop");
     loop {
-        Timer::after_millis(10).await;
-        let [x, y] = *target_speed.lock().await;
+        let [x, y] = target_speed.wait().await;
+        let mut motor_speeds = wheel_cfg.transforms(x, y);
 
-        let speeds = wheel_cfg.transforms(x, y);
-        for [motor, speed] in speeds {
+        let mut old_speeds = [90_u8; 4];
+
+        for (i, [motor, speed]) in motor_speeds.iter().copied().enumerate() {
+            // Timer::after_millis(1).await;
+            let speed = match speed {
+                87..=93 => 90,
+                speed => speed,
+            };
+            // if (speed as i16 - old_speeds[i] as i16).abs() < 3 {
+            // trace!("i:{}, speed:{}", i, speed);
+            // continue;
+            // }
             let buf = [motor, speed, 0, 0];
             let res = twim.write(wukong_address, &buf).await;
+            match res {
+                _ => {
+                    // info!("new speed set: {:?}", [i as u8, speed]);
+                    // info!("from x:{} y:{}", x, y);
+                    // info!("read: {:?}", readbuf);
+                    old_speeds[i] = speed;
+                }
+                Err(e) => {
+                    error!(
+                        "failed to write twi_buff: {}:{:?} \n\te:{}",
+                        wukong_address, buf, e
+                    );
+                }
+            }
         }
     }
     return;

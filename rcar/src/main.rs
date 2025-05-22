@@ -16,13 +16,14 @@ use nrf_softdevice::{raw, Softdevice};
 
 use rcar::SharedSpeed;
 
-pub static TARGET_SPEED: SharedSpeed = SharedSpeed::new([0.0, 0.0]);
+pub static TARGET_SPEED: SharedSpeed = SharedSpeed::new();
 
 #[embassy_executor::main]
 async fn main(s: Spawner) {
     println!("Hello, World!");
     let p = embassy_nrf::init(rcar::config());
 
+    &TARGET_SPEED.signal([0.0, 0.0]);
     s.spawn(rcar::motor::drive_servos(
         &TARGET_SPEED,
         p.TWISPI1,

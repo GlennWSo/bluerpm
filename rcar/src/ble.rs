@@ -61,15 +61,11 @@ pub async fn gatt_server_task(server: &'static Server, target_speed: &'static Sh
         gatt_server::run(&conn, server, |e| match e {
             ServerEvent::Rcar(e) => match e {
                 RcCarServiceEvent::TargetVelocityWrite(v_bytes) => {
-                    let Ok(mut targe_speed) = target_speed.try_lock() else {
-                        warn!("unable to set speed, lock buzy");
-                        return;
-                    };
                     let (x_bytes, y_bytes) = split_array!(v_bytes, 4, 4);
                     let x = f32::from_le_bytes(x_bytes);
                     let y = f32::from_le_bytes(y_bytes);
                     trace!("set speed request x:{} y:{}", x, y);
-                    *targe_speed = [x, y];
+                    target_speed.signal([x, y]);
                 }
             },
         })
