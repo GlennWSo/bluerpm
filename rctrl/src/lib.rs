@@ -1,20 +1,20 @@
 #![no_std]
 #![no_main]
 
-use core::mem;
-
-use defmt::{info, *};
-
 use embassy_executor::{SpawnError, Spawner};
 use embassy_nrf::config::Config;
 use embassy_nrf::interrupt::Priority;
+use embassy_sync::signal::Signal;
 use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, mutex::Mutex};
-
 use embassy_time::Timer;
+use micromath::F32;
 use nrf_softdevice::ble::{Address, AddressType, central, gatt_client};
 use nrf_softdevice::{Softdevice, raw};
 
 use array_concat::*;
+use core::mem;
+use defmt::{info, *};
+use micromath::F32Ext;
 
 /// Application must run at a lower priority than softdevice
 pub fn config() -> Config {
@@ -83,7 +83,9 @@ fn sd_config() -> &'static Softdevice {
     Softdevice::enable(&config)
 }
 
-pub type SharedSpeed = Mutex<ThreadModeRawMutex, [f32; 2]>;
+pub type Vec2 = micromath::vector::F32x2;
+
+pub type SharedSpeed = Signal<ThreadModeRawMutex, Vec2>;
 
 #[embassy_executor::task]
 pub async fn write_ble(target_speed: &'static SharedSpeed, s: Spawner) {
@@ -116,15 +118,30 @@ pub async fn write_ble(target_speed: &'static SharedSpeed, s: Spawner) {
     info!("connected");
 
     let client: RcCarClient = unwrap!(gatt_client::discover(&conn).await);
+    let mut last_speed = Vec2::default();
+    let epsillon = 0.04_f32.powi(2);
     loop {
-        Timer::after_millis(10).await;
-        let v = *target_speed.lock().await;
-        let x_bytes = v[0].to_le_bytes();
-        let y_bytes = v[1].to_le_bytes();
+        let speed = target_speed.wait().await;
+
+        let diff_speed = (speed - last_speed);
+        let dlen2 = diff_speed[0].powi(2) + diff_speed[1].powi(2);
+        if dlen2 < epsillon {
+            continue;
+        }
+        info!(
+            "new speed: {:?}, old: {:?}",
+            speed.to_array(),
+            last_speed.to_array()
+        );
+
+        last_speed = speed;
+
+        let x_bytes = speed.x.to_le_bytes();
+        let y_bytes = speed.y.to_le_bytes();
         let v_bytes = concat_arrays!(x_bytes, y_bytes);
 
         match client.target_velocity_write(&v_bytes).await {
-            Ok(()) => trace!("sent speed: {:?}", v),
+            Ok(()) => trace!("sent speed: {:?}", speed),
             Err(e) => error!("failed to send speedy: {}", e),
         };
     }

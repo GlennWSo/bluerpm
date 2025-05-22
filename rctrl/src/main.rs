@@ -18,13 +18,13 @@ use micromath::F32Ext;
 use embassy_time::{Duration, Timer};
 // use microbit_bsp::*;
 use nrf_softdevice;
-use rctrl::{SharedSpeed, write_ble};
+use rctrl::{SharedSpeed, Vec2, write_ble};
 use {defmt_rtt as _, panic_probe as _};
 
 type Btn = Input<'static, AnyPin>;
 type Led = Output<'static, AnyPin>;
 
-static TARGET_SPEED: SharedSpeed = Mutex::new([0.0, 0.0]);
+static TARGET_SPEED: SharedSpeed = SharedSpeed::new();
 
 bind_interrupts!(struct Irqs {
     SAADC => saadc::InterruptHandler;
@@ -56,9 +56,9 @@ impl<'a> Joystick<'a> {
         self.clamp(v)
     }
     /// normalized vector
-    fn vec2(&self) -> [f32; 2] {
+    fn vec2(&self) -> Vec2 {
         if (self.x() == 0) && (self.y() == 0) {
-            return [0.0; 2];
+            return Vec2::default();
         };
         let x = self.x() as f32;
         let y = self.y() as f32;
@@ -67,7 +67,9 @@ impl<'a> Joystick<'a> {
         let maxmag2 = maxv.powi(2);
         let clamp_mag2 = mag2.min(maxmag2);
         let clamper = (clamp_mag2 / mag2).sqrt() / maxv;
-        [x * clamper, -y * clamper]
+        let x = x * clamper;
+        let y = -y * clamper;
+        Vec2 { x, y }
     }
 }
 
@@ -108,7 +110,8 @@ async fn analog_read(
             minv,
             maxv,
         };
-        *target_speed.lock().await = joy.vec2();
+        let speed = joy.vec2();
+        target_speed.signal(speed);
 
         Timer::after_millis(10).await;
     }

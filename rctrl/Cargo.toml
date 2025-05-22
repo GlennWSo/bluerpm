@@ -24,7 +24,7 @@ embassy-sync = "0.5.0"
 ringbuffer = { version = "0.15.0", default-features = false }
 embassy-nrf = "0.1.0"
 embedded-hal = "1.0.0"
-micromath = "2.1.0"
+micromath = { version = "2.1.0", features = ["vector"] }
 array-concat = "0.5.5"
 
 
