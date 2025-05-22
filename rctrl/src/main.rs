@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use defmt::{info, println};
+use defmt::{info, println, trace};
 use embassy_executor::Spawner;
 use embassy_futures::select::{Either, select};
 use embassy_nrf::{
@@ -53,7 +53,7 @@ impl<'a> Joystick<'a> {
     }
     fn y(&self) -> i16 {
         let v = self.raw[1] - self.offsets[1];
-        self.clamp(v)
+        -self.clamp(v)
     }
     fn z(&self) -> i16 {
         let v = self.raw[2] - self.offsets[2];
@@ -124,8 +124,8 @@ async fn analog_read(
         let speed = joy.vec3();
         target_speed.signal(speed);
 
-        info!("speed: {:?}", speed.to_array());
-        Timer::after_millis(400).await;
+        trace!("speed: {:?}", speed.to_array());
+        Timer::after_millis(5).await;
     }
 }
 

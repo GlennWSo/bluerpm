@@ -18,8 +18,12 @@ use embassy_nrf::{
 
 use embassy_sync::{blocking_mutex::raw::ThreadModeRawMutex, mutex::Mutex};
 use embassy_time::{Duration, Instant, Timer};
-// use micromath::F32Ext;
+use micromath::{
+    vector::{F32x2, Vector},
+    F32Ext,
+};
 use {defmt_rtt as _, panic_probe as _};
+type Vec2 = F32x2;
 
 // use nrf_softdevice::ble::{gatt_server, peripheral, Connection};
 // use nrf_softdevice::{raw, Softdevice};
@@ -29,7 +33,6 @@ use static_cell::StaticCell;
 // type SharedCounter = Mutex<ThreadModeRawMutex, u32>;
 // static COUNTER: SharedCounter = SharedCounter::new(0);
 use core::ops::Add;
-use micromath::F32Ext;
 
 bind_interrupts!(struct Irqs {
     SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1 => twim::InterruptHandler<peripherals::TWISPI1>;
@@ -59,8 +62,22 @@ impl WheelSpeed {
             back_right: -x,
         }
     }
+    fn drive_z(z: f32) -> WheelSpeed {
+        WheelSpeed {
+            front_left: -z,
+            back_left: -z,
+            front_right: -z,
+            back_right: -z,
+        }
+    }
+
     fn translate(x: f32, y: f32) -> WheelSpeed {
         (WheelSpeed::drive_x(x) + WheelSpeed::drive_y(y)).clamp1()
+    }
+    fn trans_rotate(x: f32, y: f32, z: f32) -> WheelSpeed {
+        let xy_mag = Vec2 { x, y }.magnitude();
+        let z = z / (2.0 - xy_mag);
+        (WheelSpeed::drive_x(x) + WheelSpeed::drive_y(y) + WheelSpeed::drive_z(z)).clamp1()
     }
 
     fn to_array(&self) -> [f32; 4] {
@@ -130,9 +147,20 @@ struct WheelMan {
     back_right: u8,
 }
 
+type MotorWriteBufs = [[u8; 2]; 4];
+
 impl WheelMan {
-    fn transforms(&self, x: f32, y: f32) -> [[u8; 2]; 4] {
+    fn transform_bufs(&self, x: f32, y: f32) -> MotorWriteBufs {
         let speeds = WheelSpeed::translate(x, y);
+        [
+            [self.front_left, (speeds.front_left * 90.0 + 90.0) as u8],
+            [self.front_right, (speeds.front_right * 90.0 + 90.0) as u8],
+            [self.back_left, (speeds.back_left * 90.0 + 90.0) as u8],
+            [self.back_right, (speeds.back_right * 90.0 + 90.0) as u8],
+        ]
+    }
+    fn trans_rotate_bufs(&self, x: f32, y: f32, z: f32) -> MotorWriteBufs {
+        let speeds = WheelSpeed::trans_rotate(x, y, z);
         [
             [self.front_left, (speeds.front_left * 90.0 + 90.0) as u8],
             [self.front_right, (speeds.front_right * 90.0 + 90.0) as u8],
@@ -172,8 +200,8 @@ pub async fn drive_servos(
     info!("entering speed ctrl loop");
     loop {
         let [x, y, z] = target_speed.wait().await;
-        let mut motor_speeds = wheel_cfg.transforms(x, y);
-        info!("new speed: x:{}, y:{}, z:{}", x, y, z);
+        let mut motor_speeds = wheel_cfg.trans_rotate_bufs(x, y, z);
+        trace!("new speed: x:{}, y:{}, z:{}", x, y, z);
 
         for (i, [motor, speed]) in motor_speeds.iter().copied().enumerate() {
             let buf = [motor, speed, 0, 0];
