@@ -1,0 +1,32 @@
+[package]
+name = "spi7display"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+embassy-executor = { version = "0.5.0", features = ["arch-cortex-m", "executor-thread", "executor-interrupt", "defmt", "integrated-timers"]}
+embassy-nrf = { version = "0.1.0", features = ["nrf52833", "defmt", "gpiote", "time-driver-rtc1" ]}
+embassy-sync = { version = "0.5.0" }
+embassy-time = { version = "0.3.0", features = ["defmt", "defmt-timestamp-uptime"]}
+embedded-storage = "0.3.1"
+embedded-storage-async = "0.4.1"
+embassy-futures = { version = "0.1.1", features = ["defmt"] }
+
+nrf-softdevice-s113 = { version = "0.1.1"  }
+nrf-softdevice = { version = "0.1.0",  features = ["defmt", "s113","nrf52833", "ble-peripheral", "ble-gatt-server", "critical-section-impl"] }
+
+cortex-m = "0.7.7"
+cortex-m-rt = "0.7.3"
+
+defmt = "0.3.5"
+defmt-rtt = "0.4.0"
+panic-probe = { version = "0.3.1", features= ["print-defmt"] }
+futures = { version = "0.3.29", default-features = false }
+
+atomic-pool = "1.0.1"
+fixed = "1.24.0"
+heapless = "0.8.0"
+static_cell = "2.0.0"
+array-concat = "0.5.5"
+micromath = { version = "2.1.0", features = ["vector"] }
+
