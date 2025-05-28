@@ -91,7 +91,7 @@ async fn display7(mut spim: spim::Spim<'static, TWISPI1>, mut ncs: Output<'stati
             ncs.set_low();
             spim.write(&[SEGS[num], mask]).await.unwrap();
             ncs.set_high();
-            Timer::after_nanos(1000).await;
+            Timer::after_ticks(10).await;
         }
     }
 }
