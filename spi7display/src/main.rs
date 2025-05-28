@@ -113,12 +113,12 @@ async fn main(s: Spawner) {
     Timer::after_millis(100);
     s.spawn(display7(spim, ncs)).unwrap();
 
-    let mut btn_b = Input::new(p.P0_23, embassy_nrf::gpio::Pull::Up);
+    let mut btn_a = Input::new(p.P0_14, embassy_nrf::gpio::Pull::Up);
     let mut counter = 0_u16;
     info!("entering buzy loop");
     loop {
-        btn_b.wait_for_rising_edge().await;
-        info!("btn_b");
+        btn_a.wait_for_rising_edge().await;
+        info!("btn_1");
         DISPLAY_NUMBER.signal(counter);
         counter += 1;
     }

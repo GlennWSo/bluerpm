@@ -1121,6 +1121,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3df6368f71f205ff9c33c076d170dd56ebf68e8161c733c0caa07a7a5509ed53"
 
 [[package]]
+name = "rpmsensor"
+version = "0.1.0"
+dependencies = [
+ "cortex-m-rt",
+ "defmt 0.3.100",
+ "defmt-rtt",
+ "embassy-executor",
+ "embassy-futures",
+ "embassy-nrf",
+ "embassy-sync 0.5.0",
+ "embassy-time",
+ "heapless 0.7.17",
+ "microbit-bsp",
+ "nrf-softdevice",
+ "nrf-softdevice-s113",
+ "panic-probe",
+ "ringbuffer",
+ "static_cell",
+]
+
+[[package]]
 name = "rustc_version"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

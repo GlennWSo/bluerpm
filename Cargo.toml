@@ -1,5 +1,5 @@
 [workspace]
-members = [ "rcar", "rctrl", "spi7display"]
+members = [ "rcar", "rctrl", "spi7display", "rpmsensor"]
 # metadata.crane.name = "hello-bit"
 metadata.crane.version = "0.1.0"
 resolver = "2"
