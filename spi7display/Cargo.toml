@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 embassy-executor = { version = "0.5.0", features = ["arch-cortex-m", "executor-thread", "executor-interrupt", "defmt", "integrated-timers"]}
 embassy-nrf = { version = "0.1.0", features = ["nrf52833", "defmt", "gpiote", "time-driver-rtc1" ]}
-embassy-sync = { version = "0.5.0" }
+embassy-sync = { version = "0.7" }
 embassy-time = { version = "0.3.0", features = ["defmt", "defmt-timestamp-uptime"]}
 embedded-storage = "0.3.1"
 embedded-storage-async = "0.4.1"
